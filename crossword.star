@@ -1,14 +1,17 @@
-load("render.star", "render")
 load("animation.star", "animation")
-load("random.star", "random")
-load("time.star", "time")
-load("re.star", "re")
+load("html.star", "html")
+load("http.star", "http")
 load("humanize.star", "humanize")
-load("pixlib/const.star", "const")
-load("pixlib/font.star", "font")
-load("pixlib/html.star", "html")
+load("random.star", "random")
+load("re.star", "re")
+load("render.star", "render")
+load("time.star", "time")
+load("xpath.star", "xpath")
 
 URL = "https://www.xwordinfo.com/Crossword?date=%s/%s/%s"
+
+FPS = 20 // 3
+DELAY = 1000 // FPS
 
 def main(config):
   year = time.now().year
@@ -24,14 +27,14 @@ def main(config):
     fail("Failed to load XWord Info")
 
   data = response.body()
-  doc = html.xpath(data)
+  doc = html(data)
 
-  clue_answers = doc.query_all("//div[@class='numclue']/div[position() mod 2 = 0]")
+  clues = doc.find("div.numclue").children()
   clue_answers = [
-    clue_answer
-    for clue_answer in clue_answers
-    if valid(clue_answer)
+    clues.eq(i).text()
+    for i in range(clues.len()) if i % 2 == 1 and valid(clues.eq(i).text())
   ]
+
   clue_answer = clue_answers[random.number(0, len(clue_answers) - 1)]
   clue, answer = clue_answer.split(" : ")
 
@@ -40,14 +43,11 @@ def main(config):
   title = "%s (%s)" % (weekday, len(answer))
 
   title_font = "CG-pixel-3x5-mono"
-  title_height = font.height(title_font) + 2
-  clue_height = const.HEIGHT - title_height
-
-  fps = const.FPS // 3
-  delay = 1000 // fps
+  title_height = 7
+  clue_height = 32 - title_height
 
   return render.Root(
-    delay=delay,
+    delay=DELAY,
     show_full_animation=True,
     child=render.Box(
       child=render.Column(
@@ -62,13 +62,13 @@ def main(config):
             children=[
               render.Box(
                 height=clue_height,
-                width=const.WIDTH,
+                width=64,
                 color="#fff",
                 child=render_answer(answer)
               ),
               animation.Transformation(
-                duration=fps, # A second
-                delay=fps * 10, # 10 seconds
+                duration=FPS, # A second
+                delay=FPS * 10, # 10 seconds
                 keyframes=[
                   animation.Keyframe(
                     percentage=1.0,
@@ -82,11 +82,11 @@ def main(config):
                     scroll_direction="vertical",
                     offset_start=clue_height,
                     height=clue_height,
-                    width=const.WIDTH,
+                    width=64,
                     align="center",
                     child=render.WrappedText(
                       clue,
-                      width=const.WIDTH,
+                      width=64,
                       align="center",
                       font="tom-thumb"
                     )
@@ -118,7 +118,7 @@ def valid(clue_answer):
   return True
 
 ANSWER_FONT = "CG-pixel-3x5-mono"
-CELL_INNER = font.height(ANSWER_FONT) + 2
+CELL_INNER = 7
 CELL_OUTER = CELL_INNER + 2
 
 def render_letter(letter):
