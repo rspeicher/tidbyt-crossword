@@ -21,12 +21,14 @@ def main(config):
   day = random.number(1, 28)
   date = time.time(year=year, month=month, day=day)
 
-  response = http.get(URL % (date.month, date.day, date.year))
+  url = URL % (date.month, date.day, date.year)
+  flaresolverr_url = config.get("flaresolverr_url")
 
-  if response.status_code != 200:
-    fail("Failed to load XWord Info")
+  if flaresolverr_url:
+    data = fetch_via_flaresolverr(flaresolverr_url, url)
+  else:
+    data = fetch(url)
 
-  data = response.body()
   doc = html(data)
 
   clues = doc.find("div.numclue").children()
@@ -99,6 +101,31 @@ def main(config):
       )
     )
   )
+
+def fetch(url):
+  response = http.get(url)
+
+  if response.status_code != 200:
+    fail("Failed to load XWord Info")
+
+  return response.body()
+
+# XWord Info's Cloudflare rules block non-browser clients, so optionally route
+# the request through a FlareSolverr instance, which fetches with a real browser
+def fetch_via_flaresolverr(flaresolverr_url, url):
+  response = http.post(
+    flaresolverr_url,
+    json_body={"cmd": "request.get", "url": url, "maxTimeout": 60000},
+  )
+
+  if response.status_code != 200:
+    fail("Failed to reach FlareSolverr")
+
+  solution = response.json().get("solution", {})
+  if solution.get("status") != 200:
+    fail("Failed to load XWord Info via FlareSolverr")
+
+  return solution["response"]
 
 def valid(clue_answer):
   clue, answer = clue_answer.split(" : ")
