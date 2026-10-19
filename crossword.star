@@ -38,7 +38,7 @@ def main(config):
   ]
 
   clue_answer = clue_answers[random.number(0, len(clue_answers) - 1)]
-  clue, answer = clue_answer.split(" : ")
+  clue, answer = clue_answer.rsplit(" : ", 1)
 
   weekday = humanize.time_format("EEEE", date)
 
@@ -128,7 +128,8 @@ def fetch_via_flaresolverr(flaresolverr_url, url):
   return solution["response"]
 
 def valid(clue_answer):
-  clue, answer = clue_answer.split(" : ")
+  # The clue itself can contain " : ", but the answer is always last
+  clue, answer = clue_answer.rsplit(" : ", 1)
 
   # Too long for the screen, or too short to be interesting
   if len(answer) < 3 or len(answer) > 8:
